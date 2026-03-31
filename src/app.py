@@ -38,8 +38,100 @@ activities = {
         "schedule": "Mondays, Wednesdays, Fridays, 2:00 PM - 3:00 PM",
         "max_participants": 30,
         "participants": ["john@mergington.edu", "olivia@mergington.edu"]
+    },
+    "Basketball Team": {
+        "description": "Competitive basketball practice and games",
+        "schedule": "Tuesdays and Thursdays, 4:00 PM - 5:30 PM",
+        "max_participants": 15,
+        "participants": ["james@mergington.edu"]
+    },
+    "Tennis Club": {
+        "description": "Tennis skills development and matches",
+        "schedule": "Mondays and Wednesdays, 3:30 PM - 5:00 PM",
+        "max_participants": 16,
+        "participants": ["sophia@mergington.edu", "lucas@mergington.edu"]
+    },
+    "Art Studio": {
+        "description": "Painting, drawing, and sculpture creation",
+        "schedule": "Wednesdays and Fridays, 3:30 PM - 5:00 PM",
+        "max_participants": 18,
+        "participants": ["isabella@mergington.edu"]
+    },
+    "Drama Club": {
+        "description": "Theater performances and acting workshops",
+        "schedule": "Mondays and Thursdays, 4:00 PM - 5:30 PM",
+        "max_participants": 22,
+        "participants": ["noah@mergington.edu", "ava@mergington.edu"]
+    },
+    "Debate Team": {
+        "description": "Develop public speaking and argumentation skills",
+        "schedule": "Tuesdays and Fridays, 3:30 PM - 4:30 PM",
+        "max_participants": 14,
+        "participants": ["ethan@mergington.edu", "mia@mergington.edu"]
+    },
+    "Science Club": {
+        "description": "Explore scientific concepts through experiments and projects",
+        "schedule": "Wednesdays, 3:30 PM - 5:00 PM",
+        "max_participants": 20,
+        "participants": ["alexander@mergington.edu"]
     }
 }
+
+
+# Helper functions for business logic
+def find_activity(activity_name: str):
+    """Find an activity by name. Returns the activity dict or None if not found."""
+    return activities.get(activity_name)
+
+
+def is_valid_email(email: str) -> bool:
+    """Validate email is not empty."""
+    return bool(email and isinstance(email, str) and len(email.strip()) > 0)
+
+
+def signup_participant(activity_name: str, email: str) -> tuple[dict, int]:
+    """
+    Sign up a participant for an activity.
+    
+    Returns:
+        tuple: (response_dict, status_code)
+            - ({"message": "..."}, 200) on success
+            - ({"detail": "..."}, 404) if activity not found
+            - ({"detail": "..."}, 400) if student already signed up
+    """
+    if not is_valid_email(email):
+        return {"detail": "Invalid email"}, 400
+    
+    activity = find_activity(activity_name)
+    if not activity:
+        return {"detail": "Activity not found"}, 404
+    
+    if email in activity["participants"]:
+        return {"detail": "Student already signed up for this activity"}, 400
+    
+    activity["participants"].append(email)
+    return {"message": f"Signed up {email} for {activity_name}"}, 200
+
+
+def remove_participant(activity_name: str, email: str) -> tuple[dict, int]:
+    """
+    Remove a participant from an activity.
+    
+    Returns:
+        tuple: (response_dict, status_code)
+            - ({"message": "..."}, 200) on success
+            - ({"detail": "..."}, 404) if activity not found
+            - ({"detail": "..."}, 404) if participant not found
+    """
+    activity = find_activity(activity_name)
+    if not activity:
+        return {"detail": "Activity not found"}, 404
+    
+    if email not in activity["participants"]:
+        return {"detail": "Participant not found"}, 404
+    
+    activity["participants"].remove(email)
+    return {"message": f"Unregistered {email} from {activity_name}"}, 200
 
 
 @app.get("/")
@@ -55,13 +147,16 @@ def get_activities():
 @app.post("/activities/{activity_name}/signup")
 def signup_for_activity(activity_name: str, email: str):
     """Sign up a student for an activity"""
-    # Validate activity exists
-    if activity_name not in activities:
-        raise HTTPException(status_code=404, detail="Activity not found")
+    response, status_code = signup_participant(activity_name, email)
+    if status_code != 200:
+        raise HTTPException(status_code=status_code, detail=response.get("detail", "Error"))
+    return response
 
-    # Get the specific activity
-    activity = activities[activity_name]
 
-    # Add student
-    activity["participants"].append(email)
-    return {"message": f"Signed up {email} for {activity_name}"}
+@app.delete("/activities/{activity_name}/participants/{email}")
+def unregister_from_activity(activity_name: str, email: str):
+    """Unregister a student from an activity"""
+    response, status_code = remove_participant(activity_name, email)
+    if status_code != 200:
+        raise HTTPException(status_code=status_code, detail=response.get("detail", "Error"))
+    return response
